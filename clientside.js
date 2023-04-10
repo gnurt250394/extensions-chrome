@@ -2,6 +2,38 @@ var script = window.document.createElement('script');
 script.src = 'https://ajax.googleapis.com/ajax/libs/jquery/3.6.4/jquery.min.js';// Load jQuery
 window.document.getElementsByTagName('head')[0].appendChild(script);
 
+const convertPrice = (str, type) => {
+    let price = str
+    if (
+        type == 'price' ||
+        type == 'totalPrice' ||
+        type == 'amount'
+    ) {
+        const pattern = /[\d,.]+/;
+        const match = str?.match(pattern);
+        if (match) {
+            const amount = parseFloat(match[0].replace(/,/g, ''));
+            price = amount;
+        }
+    }
+    return price
+}
+const converData = (input) => {
+    console.log("-> arr", input);
+    let output = [];
+
+    for (let i = 0; i < input[0].length; i++) {
+        let obj = {};
+        for (let j = 0; j < input.length; j++) {
+            console.log("-> obj", obj);
+            console.log("-> input[j][i]", input[j][i]);
+            obj = {...obj, ...input[j][i]};
+        }
+        output.push(obj);
+    }
+
+    return output
+}
 const getPayload = () => {
     let data = {
         "_meta": {
@@ -43,13 +75,37 @@ const getPayload = () => {
     let quantitys = data.itemSelectors.item.quantity.map(e => ({...e, type: 'amount'}))
     let titles = data.itemSelectors.item.title.map(e => ({...e, type: 'productInfo'}))
     let attributes = data.itemSelectors.item.attribute.map(e => ({...e, type: 'ProductOption'}))
+    let images = data.orderSelectors.image.map(e => ({...e, type: 'image'}))
+    let productInfos = data.orderSelectors.title.map(e => ({...e, type: 'productInfo'}))
+    let totalPrices = data.orderSelectors.totalPrice.map(e => ({...e, type: 'totalPrice'}))
     let list = prices.concat(quantitys).concat(titles).concat(attributes)
+    let arr = []
+    let payload = {
+        product: [
+            {
+                price: '',
+                amount: '',
+                productInfo: '',
+                ProductOption: '',
+                image: '',
+                productInfo: ''
+
+            }
+        ],
+        totalPrice: ''
+    }
+    images.forEach(item => {
+        $(item.value).ready(function () {
+            let image = $(item.value).prop('src')
+
+            console.log('image', image);
+        })
+    })
     cardWrapper.forEach(card => {
         $(card).ready(function () {
             $(card).bind('DOMSubtreeModified', function () {
                 let arr = []
                 list.forEach(item => {
-                    console.log("-> item", item);
                     let price = ''
                     if (item.targetProperty === 'src') {
                         price = $(item.value).map(function () {
@@ -60,33 +116,32 @@ const getPayload = () => {
                     } else if (item.targetProperty === 'value') {
                         price = $(item.value).map(function () {
                             return {
-                                [item.type]: $(this).val()
+                                [item.type]: convertPrice($(this).val(), item.type)
                             }
                         }).get();
                     } else {
                         price = $(item.value).map(function () {
                             return {
-                                [item.type]: $(this).text()
+                                [item.type]: convertPrice($(this).text(), item.type)
                             }
                         }).get();
                     }
                     arr.push(price)
                 })
-                let output = [];
-
-                for (let i = 0; i < arr[0].length; i++) {
-                    let obj = {};
-                    for (let j = 0; j < arr.length; j++) {
-                        let key = Object.keys(arr[j][i])[0];
-                        obj[key] = arr[j][i][key];
-                    }
-                    output.push(obj);
-                }
+                let output = converData(arr)
 
                 console.log('output', output);
             });
         });
     })
+
+    $(data.observeSelectors.totalPrice).ready(function () {
+        let totalPrice = convertPrice($(data.observeSelectors.totalPrice).text(), 'price')
+        $(data.observeSelectors.totalPrice).bind('DOMSubtreeModified', function () {
+            totalPrice = convertPrice($(this).text(), 'price')
+        });
+        console.log("-> totalPrice", totalPrice);
+    });
 
 }
 
